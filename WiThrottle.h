@@ -20,10 +20,42 @@
 #include "Arduino.h"
 #include "Chrono.h"
 
+typedef enum Direction {
+    Reverse = 0,
+    Forward = 1
+} Direction;
+
+typedef enum TrackPower {
+    PowerOff = 0,
+    PowerOn = 1,
+    PowerUnknown = 2
+} TrackPower;
+
+
+
+class WiThrottleDelegate
+{
+  public:
+    virtual void receivedVersion(String version) {}
+
+    virtual void fastTimeChanged(uint32_t time) { }
+    virtual void fastTimeRateChanged(double rate) { }
+
+    virtual void receivedFunctionState(uint8_t func, bool state) { }
+
+    virtual void receivedSpeed(int speed) { }             // Vnnn
+    virtual void receivedDirection(Direction dir) { }     // R{0,1}
+    virtual void receivedSpeedSteps(int steps) { }        // snn
+
+    virtual void receivedWebPort(int port) { }            // PWnnnnn
+    virtual void receivedTrackPower(TrackPower state) { } // PPAn
+};
+
+
 class WiThrottle
 {
   public:
-    WiThrottle();
+    WiThrottle(bool server = false);
 
     void connect(Stream *stream);
     void disconnect();
@@ -34,15 +66,36 @@ class WiThrottle
 
     int fastTimeHours();
     int fastTimeMinutes();
-
     bool clockChanged;
 
+    String protocolVersion;
+    bool protocolVersionChanged;
+
+    bool requireHeartbeat(bool needed);
+    bool heartbeatChanged;
+
+    bool addLocomotive(String address);  // address is [S|L]nnnn (where n is 0-10000)
+    bool releaseLocomotive();
+    bool locomotiveChanged;
+
+    void setFunction(int funcnum, bool pressed);
+
+    bool setSpeed(int speed);
+    bool setDirection(Direction direction);
+
+    WiThrottleDelegate *delegate = NULL;
+
   private:
+    bool server;
     Stream *stream;
 
     bool processCommand(char *c, int len);
     bool processFastTime(char *c, int len);
     bool processHeartbeat(char *c, int len);
+    void processProtocolVersion(char *c, int len);
+    void processWebPort(char *c, int len);
+    void processTrackPower(char *c, int len);
+    void processFunctionState(char *c, int len);
 
     bool checkFastTime();
     bool checkHeartbeat();
@@ -52,8 +105,8 @@ class WiThrottle
     void setCurrentFastTime(const String& s);
 
     String deviceName;
-    char buffer[1024];
-    ssize_t nextChar;
+    char inputbuffer[1024];
+    ssize_t nextChar;  // where the next character to be read goes in the buffer
 
     Chrono heartbeatTimer;
     int heartbeatPeriod;
@@ -63,6 +116,10 @@ class WiThrottle
     float fastTimeRate;
 
     void resetChangeFlags();
+
+    void init();
+
+    bool locomotiveSelected = false;
 };
 
 

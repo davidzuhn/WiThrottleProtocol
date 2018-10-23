@@ -94,7 +94,7 @@ void WiFiEvent(WiFiEvent_t event) {
 
     case SYSTEM_EVENT_STA_START:
       //set sta hostname here
-      WiFi.setHostname("mylittlethrottle");
+      WiFi.setHostname("mydigitalclock");
       break;
     case SYSTEM_EVENT_STA_CONNECTED:
       break;
@@ -142,6 +142,7 @@ void setup() {
 void updateFastTimeDisplay()
 {
   static bool blinkColon = true;
+
   int hour = wiThrottle.fastTimeHours();
   int minutes = wiThrottle.fastTimeMinutes();
 
@@ -172,11 +173,25 @@ void updateFastTimeDisplay()
 
 void loop()
 {
-  static int lastMinutes = -1;
+  // call the .check method as often as you can.  This will perform any
+  // processing needed in the WiThrottle class (mostly reading data from
+  // the network and parsing the commands as they come in).
 
-  // put your main code here, to run repeatedly:
+  // This method will return true if something "interesting" happened.
+  // Various *Changed variables will be set if that's the thing that
+  // is of interest.  Due to the way networking works, more than one
+  // thing can be of interest in any call to the .check method.
+
+  // clockChanged is true once a (real) second, even if the fast time
+  // value has not changed (since fast time is kept only to the minute level),
+  // as this provides a handy value for clock displays (such as blinking a colon
+  // or an audible tick-tock noise, which shouldn't be sped up).
 
   if (wiThrottle.check()) {
     if (wiThrottle.clockChanged) { updateFastTimeDisplay(); }
+
+    if (wiThrottle.protocolVersionChanged) {
+        Serial.print("PROTOCOL VERSION "); Serial.println(wiThrottle.protocolVersion);
+    }
   }
 }
