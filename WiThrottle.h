@@ -41,6 +41,8 @@ class WiThrottleDelegate
     virtual void fastTimeChanged(uint32_t time) { }
     virtual void fastTimeRateChanged(double rate) { }
 
+    virtual void heartbeatConfig(double seconds) { }
+
     virtual void receivedFunctionState(uint8_t func, bool state) { }
 
     virtual void receivedSpeed(int speed) { }             // Vnnn
@@ -71,7 +73,7 @@ class WiThrottle
     String protocolVersion;
     bool protocolVersionChanged;
 
-    bool requireHeartbeat(bool needed);
+    bool requireHeartbeat(bool needed=true);
     bool heartbeatChanged;
 
     bool addLocomotive(String address);  // address is [S|L]nnnn (where n is 0-10000)
@@ -90,12 +92,16 @@ class WiThrottle
     Stream *stream;
 
     bool processCommand(char *c, int len);
+    bool processLocomotiveAction(char *c, int len);
     bool processFastTime(char *c, int len);
     bool processHeartbeat(char *c, int len);
     void processProtocolVersion(char *c, int len);
     void processWebPort(char *c, int len);
     void processTrackPower(char *c, int len);
-    void processFunctionState(char *c, int len);
+    void processFunctionState(const String& functionData);
+    void processSpeedSteps(const String& speedStepData);
+    void processDirection(const String& speedStepData);
+    void processSpeed(const String& speedData);
 
     bool checkFastTime();
     bool checkHeartbeat();
@@ -120,6 +126,12 @@ class WiThrottle
     void init();
 
     bool locomotiveSelected = false;
+
+    String currentAddress;
+
+    int currentSpeed;
+    int speedSteps;  // 1=128, 2=28, 4=27, 8=14, 16=28Mot
+    Direction currentDirection;
 };
 
 

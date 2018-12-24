@@ -14,20 +14,26 @@
  * version available to anyone else.
  */
 
-#include <Time.h>
+#include <ArduinoTime.h>
 #include <TimeLib.h>
 
 #include "WiThrottle.h"
 
 
 #define NEWLINE '\n'
+#define PROPERTY_SEPARATOR "<;>"
 
+static const int MIN_SPEED = 0;
+static const int MAX_SPEED = 126;
 
 
 WiThrottle::WiThrottle(bool server):
     server(server),
     heartbeatTimer(Chrono::SECONDS),
-    fastTimeTimer(Chrono::SECONDS)
+    fastTimeTimer(Chrono::SECONDS),
+    currentSpeed(0),
+    speedSteps(0),
+    currentDirection(Forward)
 {
     init();
 }
@@ -167,6 +173,51 @@ WiThrottle::fastTimeMinutes()
 
 
 
+bool
+WiThrottle::processLocomotiveAction(char *c, int len)
+{
+    String remainder(c);  // the leading "MTA" was not passed to this method
+
+    String addrCheck = currentAddress + PROPERTY_SEPARATOR;
+    String allCheck = "*";
+    allCheck.concat(PROPERTY_SEPARATOR);
+    if (remainder.startsWith(addrCheck)) {
+        remainder.remove(0, addrCheck.length());
+    }
+    else if (remainder.startsWith(allCheck)) {
+        remainder.remove(0, allCheck.length());
+    }
+
+    if (remainder.length() > 0) {
+        char action = remainder[0];
+
+        switch (action) {
+            case 'F':
+                //Serial.printf("processing function state\n");
+                processFunctionState(remainder);
+                break;
+            case 'V':
+                processSpeed(remainder);
+                break;
+            case 's':
+                processSpeedSteps(remainder);
+                break;
+            case 'R':
+                processDirection(remainder);
+                break;
+            default:
+                Serial.printf("unrecognized action\n");
+                // no processing on unrecognized actions
+                break;
+        }
+        return true;
+    }
+    else {
+        Serial.printf("insufficient action to process\n");
+        return false;
+    }
+}
+
 
 
 bool
@@ -193,10 +244,8 @@ WiThrottle::processCommand(char *c, int len)
         processWebPort(c+2, len-2);
         return true;
     }
-    else if (len > 8 && c[0]=='M' && c[1]=='T' && c[2]=='A' && c[3]=='1' &&
-             c[4]=='<' && c[5]==';' && c[6]=='>' && c[7]=='F') {
-        processFunctionState(c+8, len-8);
-        return true;
+    else if (len > 8 && c[0]=='M' && c[1]=='T' && c[2]=='A') {
+        return processLocomotiveAction(c+3, len-3);
     }
     else {
         // all other commands are explicitly ignored
@@ -230,7 +279,7 @@ WiThrottle::processFastTime(char *c, int len)
 
     String s(c);
 
-    int p = s.indexOf("<;>");
+    int p = s.indexOf(PROPERTY_SEPARATOR);
     if (p > 0) {
         String timeval = s.substring(0, p);
         String rate    = s.substring(p+3);
@@ -285,19 +334,76 @@ WiThrottle::processWebPort(char *c, int len)
 }
 
 
-void
-WiThrottle::processFunctionState(char *c, int len)
-{
-    if (delegate && len >= 2) {
-        bool state = c[0]=='1' ? true : false;
 
-        String funcNumStr = String(&c[1]);
+// the string passed in will look 'F03' (meaning turn off Function 3) or
+// 'F112' (turn on function 12)
+void
+WiThrottle::processFunctionState(const String& functionData)
+{
+    // F[0|1]nn - where nn is 0-28
+    if (delegate && functionData.length() >= 3) {
+        bool state = functionData[1]=='1' ? true : false;
+
+        String funcNumStr = functionData.substring(2);
         uint8_t funcNum = funcNumStr.toInt();
 
-        Serial.print("func number:"); Serial.print(funcNum);
-        Serial.print(" state:"); Serial.println(state ? "ON" : "OFF");
+        if (funcNum == 0 && funcNumStr != "0") {
+            // error in parsing
+        }
+        else {
+            delegate->receivedFunctionState(funcNum, state);
+        }
+    }
+}
 
-        delegate->receivedFunctionState(funcNum, state);
+
+void
+WiThrottle::processSpeed(const String& speedData)
+{
+    if (delegate && speedData.length() >= 2) {
+        String speedStr = speedData.substring(1);
+        int speed = speedStr.toInt();
+
+        if ((speed < MIN_SPEED) || (speed > MAX_SPEED)) {
+            speed = 0;
+        }
+
+        delegate->receivedSpeed(speed);
+    }
+}
+
+
+void
+WiThrottle::processSpeedSteps(const String& speedStepData)
+{
+    if (delegate && speedStepData.length() >= 2) {
+        String speedStepStr = speedStepData.substring(1);
+        int steps = speedStepStr.toInt();
+
+        if (steps != 1 && steps != 2 && steps != 4 && steps != 8 && steps !=16) {
+            // error, not one of the known values
+        }
+        else {
+            delegate->receivedSpeedSteps(steps);
+        }
+    }
+}
+
+
+void
+WiThrottle::processDirection(const String& directionStr)
+{
+    // R[0|1]
+    if (delegate && directionStr.length() == 2) {
+        if (directionStr.charAt(1) == '0') {
+            currentDirection = Reverse;
+        }
+        else {
+            currentDirection = Forward;
+        }
+
+        delegate->receivedDirection(currentDirection);
+
     }
 
 }
@@ -357,8 +463,11 @@ WiThrottle::addLocomotive(String address)
     bool ok = false;
 
     if (address[0] == 'S' || address[0] == 'L') {
-        String cmd = "MT+1<;>" + address;
+        String rosterName = address;  // for now -- could look this up...
+        String cmd = "MT+" + address + PROPERTY_SEPARATOR + rosterName;
         sendCommand(cmd);
+
+        currentAddress = address;
         ok = true;
     }
 
@@ -368,7 +477,8 @@ WiThrottle::addLocomotive(String address)
 bool
 WiThrottle::releaseLocomotive()
 {
-    String cmd = "MT-*<;>";
+    String cmd = "MT-*";
+    cmd.concat(PROPERTY_SEPARATOR);
     sendCommand(cmd);
 
     return true;
@@ -382,7 +492,10 @@ WiThrottle::setSpeed(int speed)
         return false;
     }
 
-    String cmd = "MTA*<;>V" + String(speed);
+    String cmd = "MTA*";
+    cmd.concat(PROPERTY_SEPARATOR);
+    cmd.concat("V");
+    cmd.concat(String(speed));
     sendCommand(cmd);
     return true;
 }
@@ -391,7 +504,9 @@ WiThrottle::setSpeed(int speed)
 bool
 WiThrottle::setDirection(Direction direction)
 {
-    String cmd = "MTA*<;>R";
+    String cmd = "MTA*";
+    cmd.concat(PROPERTY_SEPARATOR);
+    cmd.concat("R");
     if (direction == Reverse) {
         cmd += "0";
     }
@@ -411,7 +526,10 @@ WiThrottle::setFunction(int funcNum, bool pressed)
         return;
     }
 
-    String cmd = "MTA1<;>F";
+    String cmd = "MTA";
+    cmd.concat(currentAddress);
+    cmd.concat(PROPERTY_SEPARATOR);
+    cmd.concat("F");
 
     if (pressed) {
         cmd += "1";
