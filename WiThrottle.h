@@ -85,6 +85,8 @@ class WiThrottle
     bool setSpeed(int speed);
     bool setDirection(Direction direction);
 
+    bool emergencyStop();
+
     WiThrottleDelegate *delegate = NULL;
 
   private:

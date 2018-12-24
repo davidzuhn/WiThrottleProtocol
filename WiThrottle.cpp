@@ -519,6 +519,19 @@ WiThrottle::setDirection(Direction direction)
 }
 
 
+bool
+WiThrottle::emergencyStop()
+{
+    String cmd = "MTA*";
+    cmd.concat(PROPERTY_SEPARATOR);
+    cmd.concat("X");
+
+    sendCommand(cmd);
+
+    return true;
+}
+
+
 void
 WiThrottle::setFunction(int funcNum, bool pressed)
 {
