@@ -474,6 +474,7 @@ WiThrottle::addLocomotive(String address)
     return ok;
 }
 
+
 bool
 WiThrottle::releaseLocomotive()
 {
@@ -497,7 +498,15 @@ WiThrottle::setSpeed(int speed)
     cmd.concat("V");
     cmd.concat(String(speed));
     sendCommand(cmd);
+    currentSpeed = speed;
     return true;
+}
+
+
+int
+WiThrottle::getSpeed()
+{
+    return currentSpeed;
 }
 
 
@@ -515,7 +524,15 @@ WiThrottle::setDirection(Direction direction)
     }
     sendCommand(cmd);
 
+    currentDirection = direction;
     return true;
+}
+
+
+Direction
+WiThrottle::getDirection()
+{
+    return currentDirection;
 }
 
 

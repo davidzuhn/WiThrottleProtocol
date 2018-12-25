@@ -83,7 +83,9 @@ class WiThrottle
     void setFunction(int funcnum, bool pressed);
 
     bool setSpeed(int speed);
+    int getSpeed();
     bool setDirection(Direction direction);
+    Direction getDirection();
 
     bool emergencyStop();
 
