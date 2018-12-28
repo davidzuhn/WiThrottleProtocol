@@ -68,6 +68,7 @@ class WiThrottle
 
     int fastTimeHours();
     int fastTimeMinutes();
+    float fastTimeRate();
     bool clockChanged;
 
     String protocolVersion;
@@ -123,7 +124,7 @@ class WiThrottle
 
     Chrono fastTimeTimer;
     double currentFastTime;
-    float fastTimeRate;
+    float currentFastTimeRate;
 
     void resetChangeFlags();
 

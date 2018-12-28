@@ -46,7 +46,7 @@ WiThrottle::init()
     nextChar = 0;
     heartbeatPeriod = 0;
     currentFastTime = 0.0;
-    fastTimeRate = 0.0;
+    currentFastTimeRate = 0.0;
     locomotiveSelected = false;
     resetChangeFlags();
 }
@@ -143,11 +143,11 @@ WiThrottle::checkFastTime()
     bool changed = true;
     if (fastTimeTimer.hasPassed(1)) { // one real second
         fastTimeTimer.restart();
-        if (fastTimeRate == 0.0) {
+        if (currentFastTimeRate == 0.0) {
             clockChanged = false;
         }
         else {
-            currentFastTime += fastTimeRate;
+            currentFastTime += currentFastTimeRate;
             clockChanged = true;
         }
     }
@@ -171,6 +171,12 @@ WiThrottle::fastTimeMinutes()
     return minute(now);
 }
 
+
+float
+WiThrottle::fastTimeRate()
+{
+    return currentFastTimeRate;
+}
 
 
 bool
@@ -285,9 +291,10 @@ WiThrottle::processFastTime(char *c, int len)
         String rate    = s.substring(p+3);
 
         setCurrentFastTime(timeval);
-        fastTimeRate = rate.toFloat();
-        Serial.print("set clock rate to "); Serial.println(fastTimeRate);
+        currentFastTimeRate = rate.toFloat();
+        Serial.print("set clock rate to "); Serial.println(currentFastTimeRate);
         changed = true;
+        clockChanged = true;
     }
     else {
         setCurrentFastTime(s);
@@ -434,7 +441,7 @@ WiThrottle::processTrackPower(char *c, int len)
 bool
 WiThrottle::checkHeartbeat()
 {
-    if (heartbeatPeriod > 0 && heartbeatTimer.hasPassed(0.8 * heartbeatPeriod)) {
+    if (heartbeatPeriod > 0 && heartbeatTimer.hasPassed(0.5 * heartbeatPeriod)) {
         heartbeatTimer.restart();
 
         sendCommand("*");
