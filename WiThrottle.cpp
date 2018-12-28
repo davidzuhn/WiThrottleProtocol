@@ -27,7 +27,8 @@ static const int MIN_SPEED = 0;
 static const int MAX_SPEED = 126;
 
 
-WiThrottle::WiThrottle(bool server):
+WiThrottle::WiThrottle(Stream &debug, bool server):
+    debug(debug),
     server(server),
     heartbeatTimer(Chrono::SECONDS),
     fastTimeTimer(Chrono::SECONDS),
@@ -108,8 +109,8 @@ WiThrottle::check()
                 nextChar += 1;
                 if (nextChar == 1023) {
                     inputbuffer[1023] = 0;
-                    Serial.print("ERROR LINE TOO LONG: ");
-                    Serial.println(inputbuffer);
+                    debug.print("ERROR LINE TOO LONG: ");
+                    debug.println(inputbuffer);
                     nextChar = 0;
                 }
             }
@@ -132,7 +133,7 @@ WiThrottle::sendCommand(String cmd)
         if (server) {
             stream->println("");
         }
-        Serial.print("==> "); Serial.println(cmd);
+        debug.print("==> "); debug.println(cmd);
     }
 }
 
@@ -199,7 +200,7 @@ WiThrottle::processLocomotiveAction(char *c, int len)
 
         switch (action) {
             case 'F':
-                //Serial.printf("processing function state\n");
+                //debug.printf("processing function state\n");
                 processFunctionState(remainder);
                 break;
             case 'V':
@@ -212,14 +213,14 @@ WiThrottle::processLocomotiveAction(char *c, int len)
                 processDirection(remainder);
                 break;
             default:
-                Serial.printf("unrecognized action\n");
+                debug.printf("unrecognized action\n");
                 // no processing on unrecognized actions
                 break;
         }
         return true;
     }
     else {
-        Serial.printf("insufficient action to process\n");
+        debug.printf("insufficient action to process\n");
         return false;
     }
 }
@@ -229,8 +230,8 @@ WiThrottle::processLocomotiveAction(char *c, int len)
 bool
 WiThrottle::processCommand(char *c, int len)
 {
-    Serial.print("<== ");
-    Serial.println(c);
+    debug.print("<== ");
+    debug.println(c);
 
     if (len > 3 && c[0]=='P' && c[1]=='F' && c[2]=='T') {
         return processFastTime(c+3, len-3);
@@ -265,11 +266,11 @@ WiThrottle::setCurrentFastTime(const String& s)
 {
     int t = s.toInt();
     if (currentFastTime == 0.0) {
-        Serial.print("set fast time to "); Serial.println(t);
+        debug.print("set fast time to "); debug.println(t);
     }
     else {
-        Serial.print("updating fast time (should be "); Serial.print(t);
-        Serial.print(" is "); Serial.print(currentFastTime);  Serial.println(")");
+        debug.print("updating fast time (should be "); debug.print(t);
+        debug.print(" is "); debug.print(currentFastTime);  debug.println(")");
     }
     currentFastTime = t;
 }
@@ -292,7 +293,7 @@ WiThrottle::processFastTime(char *c, int len)
 
         setCurrentFastTime(timeval);
         currentFastTimeRate = rate.toFloat();
-        Serial.print("set clock rate to "); Serial.println(currentFastTimeRate);
+        debug.print("set clock rate to "); debug.println(currentFastTimeRate);
         changed = true;
         clockChanged = true;
     }
