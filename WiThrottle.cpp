@@ -27,8 +27,7 @@ static const int MIN_SPEED = 0;
 static const int MAX_SPEED = 126;
 
 
-WiThrottle::WiThrottle(Stream &debug, bool server):
-    debug(debug),
+WiThrottle::WiThrottle(bool server):
     server(server),
     heartbeatTimer(Chrono::SECONDS),
     fastTimeTimer(Chrono::SECONDS),
@@ -51,6 +50,13 @@ WiThrottle::init()
     locomotiveSelected = false;
     resetChangeFlags();
 }
+
+void
+WiThrottle::begin(Stream *console)
+{
+    this->console = console;
+}
+
 
 void
 WiThrottle::resetChangeFlags()
@@ -109,8 +115,8 @@ WiThrottle::check()
                 nextChar += 1;
                 if (nextChar == 1023) {
                     inputbuffer[1023] = 0;
-                    debug.print("ERROR LINE TOO LONG: ");
-                    debug.println(inputbuffer);
+                    console->print("ERROR LINE TOO LONG: ");
+                    console->println(inputbuffer);
                     nextChar = 0;
                 }
             }
@@ -133,7 +139,7 @@ WiThrottle::sendCommand(String cmd)
         if (server) {
             stream->println("");
         }
-        debug.print("==> "); debug.println(cmd);
+        console->print("==> "); console->println(cmd);
     }
 }
 
@@ -200,7 +206,7 @@ WiThrottle::processLocomotiveAction(char *c, int len)
 
         switch (action) {
             case 'F':
-                //debug.printf("processing function state\n");
+                //console->printf("processing function state\n");
                 processFunctionState(remainder);
                 break;
             case 'V':
@@ -213,14 +219,14 @@ WiThrottle::processLocomotiveAction(char *c, int len)
                 processDirection(remainder);
                 break;
             default:
-                debug.printf("unrecognized action\n");
+                console->printf("unrecognized action\n");
                 // no processing on unrecognized actions
                 break;
         }
         return true;
     }
     else {
-        debug.printf("insufficient action to process\n");
+        console->printf("insufficient action to process\n");
         return false;
     }
 }
@@ -230,8 +236,8 @@ WiThrottle::processLocomotiveAction(char *c, int len)
 bool
 WiThrottle::processCommand(char *c, int len)
 {
-    debug.print("<== ");
-    debug.println(c);
+    console->print("<== ");
+    console->println(c);
 
     if (len > 3 && c[0]=='P' && c[1]=='F' && c[2]=='T') {
         return processFastTime(c+3, len-3);
@@ -266,11 +272,11 @@ WiThrottle::setCurrentFastTime(const String& s)
 {
     int t = s.toInt();
     if (currentFastTime == 0.0) {
-        debug.print("set fast time to "); debug.println(t);
+        console->print("set fast time to "); console->println(t);
     }
     else {
-        debug.print("updating fast time (should be "); debug.print(t);
-        debug.print(" is "); debug.print(currentFastTime);  debug.println(")");
+        console->print("updating fast time (should be "); console->print(t);
+        console->print(" is "); console->print(currentFastTime);  console->println(")");
     }
     currentFastTime = t;
 }
@@ -293,7 +299,7 @@ WiThrottle::processFastTime(char *c, int len)
 
         setCurrentFastTime(timeval);
         currentFastTimeRate = rate.toFloat();
-        debug.print("set clock rate to "); debug.println(currentFastTimeRate);
+        console->print("set clock rate to "); console->println(currentFastTimeRate);
         changed = true;
         clockChanged = true;
     }

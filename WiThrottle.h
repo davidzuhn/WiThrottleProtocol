@@ -57,7 +57,9 @@ class WiThrottleDelegate
 class WiThrottle
 {
   public:
-    WiThrottle(Stream &debug, bool server = false);
+    WiThrottle(bool server = false);
+
+    void begin(Stream *console);
 
     void connect(Stream *stream);
     void disconnect();
@@ -95,7 +97,7 @@ class WiThrottle
   private:
     bool server;
     Stream *stream;
-    Stream &debug;
+    Stream *console;
 
     bool processCommand(char *c, int len);
     bool processLocomotiveAction(char *c, int len);
