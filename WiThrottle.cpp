@@ -494,6 +494,7 @@ WiThrottle::releaseLocomotive()
 {
     String cmd = "MT-*";
     cmd.concat(PROPERTY_SEPARATOR);
+    cmd.concat("r");
     sendCommand(cmd);
 
     return true;
