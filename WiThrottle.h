@@ -41,7 +41,7 @@ class WiThrottleDelegate
     virtual void fastTimeChanged(uint32_t time) { }
     virtual void fastTimeRateChanged(double rate) { }
 
-    virtual void heartbeatConfig(double seconds) { }
+    virtual void heartbeatConfig(int seconds) { }
 
     virtual void receivedFunctionState(uint8_t func, bool state) { }
 
@@ -51,6 +51,10 @@ class WiThrottleDelegate
 
     virtual void receivedWebPort(int port) { }            // PWnnnnn
     virtual void receivedTrackPower(TrackPower state) { } // PPAn
+
+    virtual void addressAdded(String address, String entry) { }  // MT+addr<;>roster entry
+    virtual void addressRemoved(String address, String command) { } // MT-addr<;>[dr]
+    virtual void addressStealNeeded(String address, String entry) { } // MTSaddr<;>addr
 };
 
 
@@ -65,6 +69,7 @@ class WiThrottle
     void disconnect();
 
     void setDeviceName(String deviceName);
+    void setDeviceID(String deviceId);
 
     bool check();
 
@@ -73,15 +78,12 @@ class WiThrottle
     float fastTimeRate();
     bool clockChanged;
 
-    String protocolVersion;
-    bool protocolVersionChanged;
-
-    bool requireHeartbeat(bool needed=true);
+    void requireHeartbeat(bool needed=true);
     bool heartbeatChanged;
 
     bool addLocomotive(String address);  // address is [S|L]nnnn (where n is 0-10000)
-    bool releaseLocomotive();
-    bool locomotiveChanged;
+    bool stealLocomotive(String address);   // address is [S|L]nnnn (where n is 0-10000)
+    bool releaseLocomotive(String address = "*");
 
     void setFunction(int funcnum, bool pressed);
 
@@ -90,7 +92,7 @@ class WiThrottle
     bool setDirection(Direction direction);
     Direction getDirection();
 
-    bool emergencyStop();
+    void emergencyStop();
 
     WiThrottleDelegate *delegate = NULL;
 
@@ -110,6 +112,8 @@ class WiThrottle
     void processSpeedSteps(const String& speedStepData);
     void processDirection(const String& speedStepData);
     void processSpeed(const String& speedData);
+    void processAddRemove(char *c, int len);
+    void processStealNeeded(char *c, int len);
 
     bool checkFastTime();
     bool checkHeartbeat();
@@ -118,7 +122,6 @@ class WiThrottle
 
     void setCurrentFastTime(const String& s);
 
-    String deviceName;
     char inputbuffer[1024];
     ssize_t nextChar;  // where the next character to be read goes in the buffer
 

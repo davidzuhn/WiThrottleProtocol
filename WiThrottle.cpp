@@ -21,6 +21,7 @@
 
 
 #define NEWLINE '\n'
+#define CR '\r'
 #define PROPERTY_SEPARATOR "<;>"
 
 static const int MIN_SPEED = 0;
@@ -63,7 +64,6 @@ WiThrottle::resetChangeFlags()
 {
     clockChanged = false;
     heartbeatChanged = false;
-    locomotiveChanged = false;
 }
 
 void
@@ -82,11 +82,17 @@ WiThrottle::disconnect()
 void
 WiThrottle::setDeviceName(String deviceName)
 {
-    this->deviceName = deviceName;
-
     String command = "N" + deviceName;
     sendCommand(command);
 }
+
+void
+WiThrottle::setDeviceID(String deviceId)
+{
+    String command = "H" + deviceId;
+    sendCommand(command);
+}
+
 
 bool
 WiThrottle::check()
@@ -101,7 +107,7 @@ WiThrottle::check()
 
         while(stream->available()) {
             char b = stream->read();
-            if (b == NEWLINE) {
+            if (b == NEWLINE | b==CR) {
                 // server sends TWO newlines after each command, we trigger on the
                 // first, and this skips the second one
                 if (nextChar != 0) {
@@ -191,6 +197,16 @@ WiThrottle::processLocomotiveAction(char *c, int len)
 {
     String remainder(c);  // the leading "MTA" was not passed to this method
 
+    //console->printf("processLocomotiveAction: remainder at first is %s\n", remainder.c_str());
+
+    if (currentAddress.equals("")) {
+        //console->printf("  skipping due to no selected address\n");
+        return true;
+    }
+    else {
+        //console->printf("  currentAddress is '%s'\n", currentAddress.c_str());
+    }
+
     String addrCheck = currentAddress + PROPERTY_SEPARATOR;
     String allCheck = "*";
     allCheck.concat(PROPERTY_SEPARATOR);
@@ -200,6 +216,8 @@ WiThrottle::processLocomotiveAction(char *c, int len)
     else if (remainder.startsWith(allCheck)) {
         remainder.remove(0, allCheck.length());
     }
+
+    //console->printf("processLocomotiveAction: after separator is %s\n", remainder.c_str());
 
     if (remainder.length() > 0) {
         char action = remainder[0];
@@ -219,7 +237,7 @@ WiThrottle::processLocomotiveAction(char *c, int len)
                 processDirection(remainder);
                 break;
             default:
-                console->printf("unrecognized action\n");
+                console->printf("unrecognized action '%c'\n", action);
                 // no processing on unrecognized actions
                 break;
         }
@@ -236,8 +254,23 @@ WiThrottle::processLocomotiveAction(char *c, int len)
 bool
 WiThrottle::processCommand(char *c, int len)
 {
+    bool changed = false;
+
     console->print("<== ");
     console->println(c);
+
+    // we regularly get this string as part of the data sent
+    // by a Digitrax LnWi.  Remove it, and try again.
+    const char *ignoreThisGarbage = "AT+CIPSENDBUF=";
+    while (strncmp(c, ignoreThisGarbage, strlen(ignoreThisGarbage)) == 0) {
+        console->printf("removed one instance of %s\n", ignoreThisGarbage);
+        c += strlen(ignoreThisGarbage);
+        changed = true;
+    }
+
+    if (changed) {
+        console->printf("input string is now: '%s'\n", c);
+    }
 
     if (len > 3 && c[0]=='P' && c[1]=='F' && c[2]=='T') {
         return processFastTime(c+3, len-3);
@@ -257,10 +290,24 @@ WiThrottle::processCommand(char *c, int len)
         processWebPort(c+2, len-2);
         return true;
     }
+    else if (len > 6 && c[0]=='M' && c[1]=='T' && c[2]=='S') {
+        processStealNeeded(c+3, len-3);
+        return true;
+    }
+    else if (len > 6 && c[0]=='M' && c[1]=='T' && (c[2]=='+' || c[2]=='-')) {
+        // we want to make sure the + or - is passed in as part of the string to process
+        processAddRemove(c+2, len-2);
+        return true;
+    }
     else if (len > 8 && c[0]=='M' && c[1]=='T' && c[2]=='A') {
         return processLocomotiveAction(c+3, len-3);
     }
+    else if (len > 3 && c[0]=='A' && c[1]=='T' && c[2]=='+') {
+        // this is an AT+.... command that the LnWi sometimes emits and we
+        // ignore these commands altogether
+    }
     else {
+        console->printf("unknown command '%s'\n", c);
         // all other commands are explicitly ignored
     }
 }
@@ -277,6 +324,7 @@ WiThrottle::setCurrentFastTime(const String& s)
     else {
         console->print("updating fast time (should be "); console->print(t);
         console->print(" is "); console->print(currentFastTime);  console->println(")");
+        console->printf("currentTime is %d\n", millis());
     }
     currentFastTime = t;
 }
@@ -322,6 +370,9 @@ WiThrottle::processHeartbeat(char *c, int len)
     if (heartbeatPeriod > 0) {
         heartbeatChanged = true;
         changed = true;
+        if (delegate) {
+            delegate->heartbeatConfig(heartbeatPeriod);
+        }
     }
     return changed;
 }
@@ -331,7 +382,7 @@ void
 WiThrottle::processProtocolVersion(char *c, int len)
 {
     if (delegate && len > 0) {
-        protocolVersion = String(c);
+        String protocolVersion = String(c);
         delegate->receivedVersion(protocolVersion);
     }
 }
@@ -407,6 +458,12 @@ WiThrottle::processSpeedSteps(const String& speedStepData)
 void
 WiThrottle::processDirection(const String& directionStr)
 {
+    console->print("DIRECTION STRING: ");
+    console->println(directionStr);
+    console->print("LENGTH: ");
+    console->println(directionStr.length());
+
+
     // R[0|1]
     if (delegate && directionStr.length() == 2) {
         if (directionStr.charAt(1) == '0') {
@@ -417,9 +474,7 @@ WiThrottle::processDirection(const String& directionStr)
         }
 
         delegate->receivedDirection(currentDirection);
-
     }
-
 }
 
 
@@ -443,6 +498,72 @@ WiThrottle::processTrackPower(char *c, int len)
 }
 
 
+void
+WiThrottle::processAddRemove(char *c, int len)
+{
+    if (!delegate) {
+        // If no one is listening, don't do the work to parse the string
+        return;
+    }
+
+    //console->printf("processing add/remove command %s\n", c);
+
+    String s(c);
+
+    bool add = (c[0] == '+');
+    bool remove = (c[0] == '-');
+
+    int p = s.indexOf(PROPERTY_SEPARATOR);
+    if (p > 0) {
+        String address = s.substring(1, p);
+        String entry   = s.substring(p+3);
+
+        address.trim();
+        entry.trim();
+
+        if (add) {
+            delegate->addressAdded(address, entry);
+        }
+        if (remove) {
+            if (entry.equals("d\n") || entry.equals("r\n")) {
+                delegate->addressRemoved(address, entry);
+            }
+            else {
+                console->printf("malformed address removal: command is %s\n", entry.c_str());
+                console->printf("entry length is %d\n", entry.length());
+                for (int i = 0; i < entry.length(); i++) {
+                    console->printf("  char at %d is %d\n", i, entry.charAt(i));
+                }
+            }
+        }
+    }
+
+
+}
+
+
+void
+WiThrottle::processStealNeeded(char *c, int len)
+{
+    if (!delegate) {
+        // If no one is listening, don't do the work to parse the string
+        return;
+    }
+
+    console->printf("processing steal needed command %s\n", c);
+
+    String s(c);
+
+    int p = s.indexOf(PROPERTY_SEPARATOR);
+    if (p > 0) {
+        String address = s.substring(0, p);
+        String entry   = s.substring(p+3);
+
+        delegate->addressStealNeeded(address, entry);
+    }
+}
+
+
 
 
 bool
@@ -460,7 +581,7 @@ WiThrottle::checkHeartbeat()
 }
 
 
-bool
+void
 WiThrottle::requireHeartbeat(bool needed)
 {
     if (needed) {
@@ -483,6 +604,8 @@ WiThrottle::addLocomotive(String address)
 
         currentAddress = address;
         ok = true;
+
+        locomotiveSelected = true;
     }
 
     return ok;
@@ -490,12 +613,29 @@ WiThrottle::addLocomotive(String address)
 
 
 bool
-WiThrottle::releaseLocomotive()
+WiThrottle::stealLocomotive(String address)
 {
-    String cmd = "MT-*";
+    bool ok = false;
+
+    if (releaseLocomotive(address)) {
+        ok = addLocomotive(address);
+    }
+
+    return ok;
+}
+
+
+bool
+WiThrottle::releaseLocomotive(String address)
+{
+    // MT-*<;>r
+    String cmd = "MT-";
+    cmd.concat(address);
     cmd.concat(PROPERTY_SEPARATOR);
     cmd.concat("r");
     sendCommand(cmd);
+
+    locomotiveSelected = false;
 
     return true;
 }
@@ -507,13 +647,18 @@ WiThrottle::setSpeed(int speed)
     if (speed < 0 || speed > 126) {
         return false;
     }
+    if (!locomotiveSelected) {
+        return false;
+    }
 
-    String cmd = "MTA*";
-    cmd.concat(PROPERTY_SEPARATOR);
-    cmd.concat("V");
-    cmd.concat(String(speed));
-    sendCommand(cmd);
-    currentSpeed = speed;
+    if (speed != currentSpeed) {
+        String cmd = "MTA*";
+        cmd.concat(PROPERTY_SEPARATOR);
+        cmd.concat("V");
+        cmd.concat(String(speed));
+        sendCommand(cmd);
+        currentSpeed = speed;
+    }
     return true;
 }
 
@@ -528,6 +673,11 @@ WiThrottle::getSpeed()
 bool
 WiThrottle::setDirection(Direction direction)
 {
+    if (!locomotiveSelected) {
+        return false;
+    }
+
+
     String cmd = "MTA*";
     cmd.concat(PROPERTY_SEPARATOR);
     cmd.concat("R");
@@ -551,7 +701,7 @@ WiThrottle::getDirection()
 }
 
 
-bool
+void
 WiThrottle::emergencyStop()
 {
     String cmd = "MTA*";
@@ -559,14 +709,16 @@ WiThrottle::emergencyStop()
     cmd.concat("X");
 
     sendCommand(cmd);
-
-    return true;
 }
 
 
 void
 WiThrottle::setFunction(int funcNum, bool pressed)
 {
+    if (!locomotiveSelected) {
+        return;
+    }
+
     if (funcNum < 0 || funcNum > 28) {
         return;
     }
