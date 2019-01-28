@@ -1,17 +1,29 @@
-/* WiThrottle
+/* -*- c++ -*-
+ *
+ * WiThrottle
  *
  * This package implements a WiThrottle protocol connection,
  * allow a device to communicate with a JMRI server or other
  * WiThrottle device (like the Digitrax LNWI).
  *
- * Copyright 2018 by david d zuhn <zoo@blueknobby.com>
+ * Copyright © 2018-2019 Blue Knobby Systems Inc.
  *
  * This work is licensed under the Creative Commons Attribution-ShareAlike
  * 4.0 International License. To view a copy of this license, visit
- * http://creativecommons.org/licenses/by-sa/4.0/deed.en_US.
+ * http://creativecommons.org/licenses/by-sa/4.0/ or send a letter to
+ * Creative Commons, PO Box 1866, Mountain View, CA 94042, USA.
  *
- * You may use this work for any purposes, provided that you make your
- * version available to anyone else.
+ * Attribution — You must give appropriate credit, provide a link to the
+ * license, and indicate if changes were made. You may do so in any
+ * reasonable manner, but not in any way that suggests the licensor
+ * endorses you or your use.
+ *
+ * ShareAlike — If you remix, transform, or build upon the material, you
+ * must distribute your contributions under the same license as the
+ * original.
+ *
+ * All other rights reserved.
+ *
  */
 
 #include <ArduinoTime.h>
