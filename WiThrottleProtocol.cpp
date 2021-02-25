@@ -1,12 +1,12 @@
 /* -*- c++ -*-
  *
- * WiThrottle
+ * WiThrottleProtocolProtocol
  *
- * This package implements a WiThrottle protocol connection,
+ * This package implements a WiThrottleProtocol protocol connection,
  * allow a device to communicate with a JMRI server or other
- * WiThrottle device (like the Digitrax LNWI).
+ * WiThrottleProtocol device (like the Digitrax LNWI).
  *
- * Copyright © 2018-2019 Blue Knobby Systems Inc.
+ * Copyright © 2018-2019, 2021 Blue Knobby Systems Inc.
  *
  * This work is licensed under the Creative Commons Attribution-ShareAlike
  * 4.0 International License. To view a copy of this license, visit
@@ -29,7 +29,7 @@
 #include <ArduinoTime.h>
 #include <TimeLib.h>
 
-#include "WiThrottle.h"
+#include "WiThrottleProtocol.h"
 
 
 #define NEWLINE '\n'
@@ -40,7 +40,7 @@ static const int MIN_SPEED = 0;
 static const int MAX_SPEED = 126;
 
 
-WiThrottle::WiThrottle(bool server):
+WiThrottleProtocol::WiThrottleProtocol(bool server):
     server(server),
     heartbeatTimer(Chrono::SECONDS),
     fastTimeTimer(Chrono::SECONDS),
@@ -52,7 +52,7 @@ WiThrottle::WiThrottle(bool server):
 }
 
 void
-WiThrottle::init()
+WiThrottleProtocol::init()
 {
     stream = NULL;
     memset(inputbuffer, 0, sizeof(inputbuffer));
@@ -65,41 +65,41 @@ WiThrottle::init()
 }
 
 void
-WiThrottle::begin(Stream *console)
+WiThrottleProtocol::begin(Stream *console)
 {
     this->console = console;
 }
 
 
 void
-WiThrottle::resetChangeFlags()
+WiThrottleProtocol::resetChangeFlags()
 {
     clockChanged = false;
     heartbeatChanged = false;
 }
 
 void
-WiThrottle::connect(Stream *stream)
+WiThrottleProtocol::connect(Stream *stream)
 {
     init();
     this->stream = stream;
 }
 
 void
-WiThrottle::disconnect()
+WiThrottleProtocol::disconnect()
 {
     this->stream = NULL;
 }
 
 void
-WiThrottle::setDeviceName(String deviceName)
+WiThrottleProtocol::setDeviceName(String deviceName)
 {
     String command = "N" + deviceName;
     sendCommand(command);
 }
 
 void
-WiThrottle::setDeviceID(String deviceId)
+WiThrottleProtocol::setDeviceID(String deviceId)
 {
     String command = "H" + deviceId;
     sendCommand(command);
@@ -107,7 +107,7 @@ WiThrottle::setDeviceID(String deviceId)
 
 
 bool
-WiThrottle::check()
+WiThrottleProtocol::check()
 {
     bool changed = false;
     resetChangeFlags();
@@ -149,7 +149,7 @@ WiThrottle::check()
 }
 
 void
-WiThrottle::sendCommand(String cmd)
+WiThrottleProtocol::sendCommand(String cmd)
 {
     if (stream) {
         // TODO: what happens when the write fails?
@@ -163,7 +163,7 @@ WiThrottle::sendCommand(String cmd)
 
 
 bool
-WiThrottle::checkFastTime()
+WiThrottleProtocol::checkFastTime()
 {
     bool changed = true;
     if (fastTimeTimer.hasPassed(1)) { // one real second
@@ -182,7 +182,7 @@ WiThrottle::checkFastTime()
 
 
 int
-WiThrottle::fastTimeHours()
+WiThrottleProtocol::fastTimeHours()
 {
     time_t now = (time_t) currentFastTime;
     return hour(now);
@@ -190,7 +190,7 @@ WiThrottle::fastTimeHours()
 
 
 int
-WiThrottle::fastTimeMinutes()
+WiThrottleProtocol::fastTimeMinutes()
 {
     time_t now = (time_t) currentFastTime;
     return minute(now);
@@ -198,14 +198,14 @@ WiThrottle::fastTimeMinutes()
 
 
 float
-WiThrottle::fastTimeRate()
+WiThrottleProtocol::fastTimeRate()
 {
     return currentFastTimeRate;
 }
 
 
 bool
-WiThrottle::processLocomotiveAction(char *c, int len)
+WiThrottleProtocol::processLocomotiveAction(char *c, int len)
 {
     String remainder(c);  // the leading "MTA" was not passed to this method
 
@@ -264,7 +264,7 @@ WiThrottle::processLocomotiveAction(char *c, int len)
 
 
 bool
-WiThrottle::processCommand(char *c, int len)
+WiThrottleProtocol::processCommand(char *c, int len)
 {
     bool changed = false;
 
@@ -327,7 +327,7 @@ WiThrottle::processCommand(char *c, int len)
 
 
 void
-WiThrottle::setCurrentFastTime(const String& s)
+WiThrottleProtocol::setCurrentFastTime(const String& s)
 {
     int t = s.toInt();
     if (currentFastTime == 0.0) {
@@ -343,7 +343,7 @@ WiThrottle::setCurrentFastTime(const String& s)
 
 
 bool
-WiThrottle::processFastTime(char *c, int len)
+WiThrottleProtocol::processFastTime(char *c, int len)
 {
     // keep this style -- I don't validate the settings and syntax
     // as well as I could, so someday we might return false
@@ -373,7 +373,7 @@ WiThrottle::processFastTime(char *c, int len)
 
 
 bool
-WiThrottle::processHeartbeat(char *c, int len)
+WiThrottleProtocol::processHeartbeat(char *c, int len)
 {
     bool changed = false;
     String s(c);
@@ -391,7 +391,7 @@ WiThrottle::processHeartbeat(char *c, int len)
 
 
 void
-WiThrottle::processProtocolVersion(char *c, int len)
+WiThrottleProtocol::processProtocolVersion(char *c, int len)
 {
     if (delegate && len > 0) {
         String protocolVersion = String(c);
@@ -400,7 +400,7 @@ WiThrottle::processProtocolVersion(char *c, int len)
 }
 
 void
-WiThrottle::processWebPort(char *c, int len)
+WiThrottleProtocol::processWebPort(char *c, int len)
 {
     if (delegate && len > 0) {
         String port_string = String(c);
@@ -415,7 +415,7 @@ WiThrottle::processWebPort(char *c, int len)
 // the string passed in will look 'F03' (meaning turn off Function 3) or
 // 'F112' (turn on function 12)
 void
-WiThrottle::processFunctionState(const String& functionData)
+WiThrottleProtocol::processFunctionState(const String& functionData)
 {
     // F[0|1]nn - where nn is 0-28
     if (delegate && functionData.length() >= 3) {
@@ -435,7 +435,7 @@ WiThrottle::processFunctionState(const String& functionData)
 
 
 void
-WiThrottle::processSpeed(const String& speedData)
+WiThrottleProtocol::processSpeed(const String& speedData)
 {
     if (delegate && speedData.length() >= 2) {
         String speedStr = speedData.substring(1);
@@ -451,7 +451,7 @@ WiThrottle::processSpeed(const String& speedData)
 
 
 void
-WiThrottle::processSpeedSteps(const String& speedStepData)
+WiThrottleProtocol::processSpeedSteps(const String& speedStepData)
 {
     if (delegate && speedStepData.length() >= 2) {
         String speedStepStr = speedStepData.substring(1);
@@ -468,7 +468,7 @@ WiThrottle::processSpeedSteps(const String& speedStepData)
 
 
 void
-WiThrottle::processDirection(const String& directionStr)
+WiThrottleProtocol::processDirection(const String& directionStr)
 {
     console->print("DIRECTION STRING: ");
     console->println(directionStr);
@@ -492,7 +492,7 @@ WiThrottle::processDirection(const String& directionStr)
 
 
 void
-WiThrottle::processTrackPower(char *c, int len)
+WiThrottleProtocol::processTrackPower(char *c, int len)
 {
     if (delegate) {
         if (len > 0) {
@@ -511,7 +511,7 @@ WiThrottle::processTrackPower(char *c, int len)
 
 
 void
-WiThrottle::processAddRemove(char *c, int len)
+WiThrottleProtocol::processAddRemove(char *c, int len)
 {
     if (!delegate) {
         // If no one is listening, don't do the work to parse the string
@@ -555,7 +555,7 @@ WiThrottle::processAddRemove(char *c, int len)
 
 
 void
-WiThrottle::processStealNeeded(char *c, int len)
+WiThrottleProtocol::processStealNeeded(char *c, int len)
 {
     if (!delegate) {
         // If no one is listening, don't do the work to parse the string
@@ -579,7 +579,7 @@ WiThrottle::processStealNeeded(char *c, int len)
 
 
 bool
-WiThrottle::checkHeartbeat()
+WiThrottleProtocol::checkHeartbeat()
 {
     if (heartbeatPeriod > 0 && heartbeatTimer.hasPassed(0.5 * heartbeatPeriod)) {
         heartbeatTimer.restart();
@@ -594,7 +594,7 @@ WiThrottle::checkHeartbeat()
 
 
 void
-WiThrottle::requireHeartbeat(bool needed)
+WiThrottleProtocol::requireHeartbeat(bool needed)
 {
     if (needed) {
         sendCommand("*+");
@@ -605,7 +605,7 @@ WiThrottle::requireHeartbeat(bool needed)
 }
 
 bool
-WiThrottle::addLocomotive(String address)
+WiThrottleProtocol::addLocomotive(String address)
 {
     bool ok = false;
 
@@ -625,7 +625,7 @@ WiThrottle::addLocomotive(String address)
 
 
 bool
-WiThrottle::stealLocomotive(String address)
+WiThrottleProtocol::stealLocomotive(String address)
 {
     bool ok = false;
 
@@ -638,7 +638,7 @@ WiThrottle::stealLocomotive(String address)
 
 
 bool
-WiThrottle::releaseLocomotive(String address)
+WiThrottleProtocol::releaseLocomotive(String address)
 {
     // MT-*<;>r
     String cmd = "MT-";
@@ -654,7 +654,7 @@ WiThrottle::releaseLocomotive(String address)
 
 
 bool
-WiThrottle::setSpeed(int speed)
+WiThrottleProtocol::setSpeed(int speed)
 {
     if (speed < 0 || speed > 126) {
         return false;
@@ -676,14 +676,14 @@ WiThrottle::setSpeed(int speed)
 
 
 int
-WiThrottle::getSpeed()
+WiThrottleProtocol::getSpeed()
 {
     return currentSpeed;
 }
 
 
 bool
-WiThrottle::setDirection(Direction direction)
+WiThrottleProtocol::setDirection(Direction direction)
 {
     if (!locomotiveSelected) {
         return false;
@@ -707,14 +707,14 @@ WiThrottle::setDirection(Direction direction)
 
 
 Direction
-WiThrottle::getDirection()
+WiThrottleProtocol::getDirection()
 {
     return currentDirection;
 }
 
 
 void
-WiThrottle::emergencyStop()
+WiThrottleProtocol::emergencyStop()
 {
     String cmd = "MTA*";
     cmd.concat(PROPERTY_SEPARATOR);
@@ -725,7 +725,7 @@ WiThrottle::emergencyStop()
 
 
 void
-WiThrottle::setFunction(int funcNum, bool pressed)
+WiThrottleProtocol::setFunction(int funcNum, bool pressed)
 {
     if (!locomotiveSelected) {
         return;

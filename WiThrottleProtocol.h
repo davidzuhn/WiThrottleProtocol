@@ -1,12 +1,12 @@
 /* -*- c++ -*-
  *
- * WiThrottle
+ * WiThrottleProtocolProtocol
  *
- * This package implements a WiThrottle protocol connection,
+ * This package implements a WiThrottleProtocol protocol connection,
  * allow a device to communicate with a JMRI server or other
- * WiThrottle device (like the Digitrax LNWI).
+ * WiThrottleProtocol device (like the Digitrax LNWI).
  *
- * Copyright © 2018-2019 Blue Knobby Systems Inc.
+ * Copyright © 2018-2019, 2021 Blue Knobby Systems Inc.
  *
  * This work is licensed under the Creative Commons Attribution-ShareAlike
  * 4.0 International License. To view a copy of this license, visit
@@ -45,7 +45,7 @@ typedef enum TrackPower {
 
 
 
-class WiThrottleDelegate
+class WiThrottleProtocolDelegate
 {
   public:
     virtual void receivedVersion(String version) {}
@@ -70,10 +70,10 @@ class WiThrottleDelegate
 };
 
 
-class WiThrottle
+class WiThrottleProtocol
 {
   public:
-    WiThrottle(bool server = false);
+    WiThrottleProtocol(bool server = false);
 
     void begin(Stream *console);
 
@@ -106,7 +106,7 @@ class WiThrottle
 
     void emergencyStop();
 
-    WiThrottleDelegate *delegate = NULL;
+    WiThrottleProtocolDelegate *delegate = NULL;
 
   private:
     bool server;

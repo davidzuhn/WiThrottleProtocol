@@ -12,7 +12,7 @@
  * This combination makes a battery powered portable fast clock for your
  * layout.  Or power it with 5V and you have a permanent installation.
  *
- * Copyright 2018 by david d zuhn <zoo@blueknobby.com>
+ * Copyright 2018, 2021 by david d zuhn <zoo@blueknobby.com>
  *
  * This work is licensed under the Creative Commons Attribution-ShareAlike
  * 4.0 International License. To view a copy of this license, visit
@@ -38,7 +38,7 @@
 #include <TimeLib.h>
 
 #include <WiFi.h>
-#include <WiThrottle.h>
+#include <WiThrottleProtocol.h>
 
 #include <Wire.h>
 #include <Adafruit_GFX.h>
@@ -59,7 +59,7 @@ const int port = 12090;
 static volatile bool wifi_connected = false;
 
 WiFiClient client;
-WiThrottle wiThrottle;
+WiThrottleProtocol wiThrottleConnection;
 
 Adafruit_7segment clockDisplay = Adafruit_7segment();
 
@@ -77,13 +77,13 @@ void wifiOnConnect() {
   }
   else {
     Serial.println("connected succeeded");
-    wiThrottle.connect(&client);
-    wiThrottle.setDeviceName("mylittlethrottle");
+    wiThrottleConnection.connect(&client);
+    wiThrottleConnection.setDeviceName("mylittlethrottle");
   }
 }
 
 void wifiOnDisconnect() {
-  wiThrottle.disconnect();
+  wiThrottleConnection.disconnect();
   Serial.println("STA Disconnected");
   delay(1000);
   WiFi.begin(ssid.c_str(), password.c_str());
@@ -143,8 +143,8 @@ void updateFastTimeDisplay()
 {
   static bool blinkColon = true;
 
-  int hour = wiThrottle.fastTimeHours();
-  int minutes = wiThrottle.fastTimeMinutes();
+  int hour = wiThrottleConnection.fastTimeHours();
+  int minutes = wiThrottleConnection.fastTimeMinutes();
 
   // Show the time on the display by turning it into a numeric
   // value, like 3:30 turns into 330, by multiplying the hour by
@@ -174,7 +174,7 @@ void updateFastTimeDisplay()
 void loop()
 {
   // call the .check method as often as you can.  This will perform any
-  // processing needed in the WiThrottle class (mostly reading data from
+  // processing needed in the WiThrottleProtocol class (mostly reading data from
   // the network and parsing the commands as they come in).
 
   // This method will return true if something "interesting" happened.
@@ -187,11 +187,11 @@ void loop()
   // as this provides a handy value for clock displays (such as blinking a colon
   // or an audible tick-tock noise, which shouldn't be sped up).
 
-  if (wiThrottle.check()) {
-    if (wiThrottle.clockChanged) { updateFastTimeDisplay(); }
+  if (wiThrottleConnection.check()) {
+    if (wiThrottleConnection.clockChanged) { updateFastTimeDisplay(); }
 
-    if (wiThrottle.protocolVersionChanged) {
-        Serial.print("PROTOCOL VERSION "); Serial.println(wiThrottle.protocolVersion);
+    if (wiThrottleConnection.protocolVersionChanged) {
+        Serial.print("PROTOCOL VERSION "); Serial.println(wiThrottleConnection.protocolVersion);
     }
   }
 }

@@ -1,4 +1,4 @@
-# WiThrottle library
+# WiThrottle network protocol library
 
 This library implements the WiThrottle protocol (as used in JMRI and other servers), allowing an device to connect to the server and act as a client (such as a dedicated fast clock device or a hardware based throttle).
 
@@ -6,7 +6,7 @@ The implementation of this library is tested on ESP32 based devices running the 
 
 ## Basic Design Principles
 
-First of all, this library implements WiThrottle in a non-blocking fashion.  After creating a WiThrottle object, you set up various necessities (like the network connection and a debug console) (see [Dependency Injection][depinj]).   Then call the ```check()``` method as often as you can (ideally, once per invocation of the ```loop()``` method) and the library will manage the I/O stream, reading in command and calling methods on the [delegate] as information is available.
+First of all, this library implements the WiThrottle protocol in a non-blocking fashion.  After creating a WiThrottle protocol object, you set up various necessities (like the network connection and a debug console) (see [Dependency Injection][depinj]).   Then call the ```check()``` method as often as you can (ideally, once per invocation of the ```loop()``` method) and the library will manage the I/O stream, reading in command and calling methods on the [delegate] as information is available.
 
 These patterns (Dependency Injection and Delegation) allow you to keep the different parts of your sketch from becoming too intertwined with each other.  Nothing in the code that manages the pushbuttons or speed knobs needs to have any detailed knowledge of the WiThrottle network protocol.
 
@@ -14,38 +14,39 @@ These patterns (Dependency Injection and Delegation) allow you to keep the diffe
 
 ### Basic Setup & Use
 ```
-WiThrottle(bool isServer)
+WiThrottleProtocol(bool isServer)
 ```
-Create a new WiThrottle manager.   You probably only need one in your program, unless you connect to multiple WiThrottle servers at the same time.   
+Create a new WiThrottleProtocol manager.   You probably only need one in your program, unless you connect to multiple WiThrottle servers at the same time.
 
 ```
 void begin(Stream *console)
 ```
-Initializes the WiThrottle object.   You should call this as part of your ```setup``` function.  You must pass in a pointer to a ```Stream``` object, which is where all debug messages will go.  This can be ```Serial```, or anything similar.  If you pass in ```NULL```, no log messages will be generated.
+Initializes the WiThrottleProtocol object.   You should call this as part of your ```setup``` function.  You must pass in a pointer to a ```Stream``` object, which is where all debug messages will go.  This can be ```Serial```, or anything similar.  If you pass in ```NULL```, no log messages will be generated.
 
 ```
 void connect(Stream *network)
 ```
-Once you have created the network client connection (say, via ```WiFiClient```), configure the WiThrottle library to use it.  After you've connected the client to WiThrottle, do NOT perform any I/O operations on the client object directly.   The WiThrottle library must control all further use of the connection (until you call ```disconnect()```).
+Once you have created the network client connection (say, via ```WiFiClient```), configure the WiThrottleProtocol library to use it.  After you've connected the client to the WiThrottleProtocol object, do NOT perform any I/O operations on the client object directly.   The WiThrottleProtocol library must control all further use of the connection (until you call ```disconnect()```).
 
 ```
 void disconnect()
 ```
-Detach the network client connection from the WiThrottle library.   The WiThrottle library will do very little of value after this is called.   I'm not entirely sure this is a useful method, but if I add a ```connect()``` I feel compelled to add ```disconnect()``` for completeness.    
+Detach the network client connection from the WiThrottleProtocol library.   The WiThrottleProtocol library will do very little of value after this is called.   I'm not entirely sure this is a useful method, but if I add a ```connect()``` I feel compelled to add ```disconnect()``` for completeness.
 
 ```
 bool check()
 ```
-This drvies all of the work of the library.  Call this method at least once every time ```loop()``` is called.   When using the library, make sure that you do not call ```delay()``` or anything else which takes up significant amounts of time.   
+This drives all of the work of the library.  Call this method at least once every time ```loop()``` is called.   When using the library, make sure that you do not call ```delay()``` or anything else which takes up significant amounts of time.
 
-If this method returns ```true```, then a command was processed this time through the loop.  There will be many, many, many more times that ```check()``` is called and it returns ```false``` than when it returns ```true```.   
+If this method returns ```true```, then a command was processed this time through the loop.  There will be many, many, many more times that ```check()``` is called and it returns ```false``` than when it returns ```true```.
 
 ```
-WiThrottleDelegate *delegate
+WiThrottleProtocolDelegate *delegate
 ```
-This variable holds a pointer to a class that subclasses the ```WiThrottleDelegate``` class.  Once this is set, various methods will be called when protocol commands come in and have been processed.
+This variable holds a pointer to a class that subclasses the ```WiThrottleProtocolDelegate``` class.  Once this is set, various methods will be called when protocol commands come in and have been processed.
 
-### Fast Time 
+
+### Fast Time
 ```
 int fastTimeHours()
 ```
@@ -78,7 +79,7 @@ void addLocomotive(String address)
 ```
 Select the given locomotive address.  The address must be in the form "Snnn" or "Lnnn", where the S or L represent a short or long address, and nnn is the numeric address.   Returns ```true``` if the address was properly formed, ```false``` otherwise.
 
-Note that the WiThrottle library does not yet support adding multiple locomotives at the same time.  
+Note that the WiThrottle library does not yet support adding multiple locomotives at the same time.
 
 ```
 bool stealLocomotive(String address)
@@ -94,7 +95,7 @@ Release the specified locomotive address.  If the address is specified as "*" (o
 ```
 void setFunction(int num, bool pressed)
 ```
-Update the state for the specified function (0-28 is the acceptable range).  If the function button has been pressed down (or otherwise activated), set ```pressed``` to ```true```.   When the button is released, set ```pressed``` to ```false```. 
+Update the state for the specified function (0-28 is the acceptable range).  If the function button has been pressed down (or otherwise activated), set ```pressed``` to ```true```.   When the button is released, set ```pressed``` to ```false```.
 
 ### Speed & Direction
 ```
@@ -127,7 +128,7 @@ Send an emergency stop command.
 
 ## Delegate Methods
 
-These methods will be called if the ```delegate``` instance variable is set.   A class may implement any or all of these methods.  
+These methods will be called if the ```delegate``` instance variable is set.   A class may implement any or all of these methods.
 
 ```
 void receivedVersion(String version)
@@ -137,12 +138,12 @@ The WiThrottle protocol version.  When the ```VNx.y``` command is received, this
 ```
 void fastTimeChanged(uint32_t time)
 ```
-Called whenever the fast time changes.  ```time``` is a standard Unix time value.   This should probably be changed to provide hour & minute parameters instead of forcing the callee to parse unix time.  
+Called whenever the fast time changes.  ```time``` is a standard Unix time value.   This should probably be changed to provide hour & minute parameters instead of forcing the callee to parse unix time.
 
 ```
 void fastTimeRateChanged(double rate)
 ```
-A new fast clock time ratio has been received.   
+A new fast clock time ratio has been received.
 
 ```
 void heartbeatConfig(int seconds)
@@ -157,7 +158,7 @@ Indicates that a function has changed state.  This is to be used when there is s
 ```
 void receivedSpeed(int speed)
 ```
-Indicates that the current speed value has been changed to ```speed```.  This might be done when a JMRI throttle is also opened up for the selected address.   
+Indicates that the current speed value has been changed to ```speed```.  This might be done when a JMRI throttle is also opened up for the selected address.
 
 ```
 void receivedDirection(Direction d)
@@ -172,7 +173,7 @@ Indicates that the selected locomotive is configured with the given number of sp
 ```
 void receivedWebPort(int port)
 ```
-Indicates that the WiThrottle is running an auxiliary web server on the given TCP port (at the same address).
+Indicates that the WiThrottle protocol server device is running an auxiliary web server on the given TCP port (at the same address).
 
 
 ```
@@ -203,7 +204,7 @@ Indicates that the ```address``` cannot be selected because it is already in use
  - Write Tests
  - More complete WiThrottle protocol parsing
  - Better Parser (Antlr?)
- 
+
 
 License
 ----
@@ -218,4 +219,4 @@ Creative Commons [CC-BY-SA 4.0][CCBYSA]   ![CCBYSA](https://i.creativecommons.or
    [depinj]: <https://en.wikipedia.org/wiki/Dependency_injection>
    [delegate]: <https://en.wikipedia.org/wiki/Delegation_(object-oriented_programming)>
    [CCBYSA]: <http://creativecommons.org/licenses/by-sa/4.0/>
-   
+
