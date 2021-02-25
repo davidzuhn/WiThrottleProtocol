@@ -1,4 +1,4 @@
-# WiThrottle network protocol library
+# WiThrottle<sup>TM</sup> network protocol library
 
 This library implements the WiThrottle protocol (as used in JMRI and other servers), allowing an device to connect to the server and act as a client (such as a dedicated fast clock device or a hardware based throttle).
 
